@@ -10,6 +10,14 @@ class WallObject{
     }
 
 }
+
+const directions = {
+    idle:-1,
+    north:0,
+    east:1,
+    south:2,
+    west:3
+}
 const playerSpriteData = {
     src:"Assets/pacman.png",
     spriteX:200,
@@ -62,18 +70,32 @@ class MovableObject{
     }
 }
 
-const player =new MovableObject(50,50,playerSpriteData);
-function start(){
+class PlayerObject extends MovableObject{
+    constructor(x,y,image_data){
+        super(x,y,image_data)
+        this.directions=-1
+
+    }
 
 
 }
+
+const player =new PlayerObject(60,50,playerSpriteData);
+//const player2 =new PlayerObject(200,50,playerSpriteData);
 
 function update(){
     //console.log("update");
     ctx.clearRect(0,0,canvas.width,canvas.height);
     player.render();
+    //player2.render();
     requestAnimationFrame(update);
 }
 
-start();
+
 update();
+window.addEventListener("keydown",function(e){
+    console.log(e); 
+})
+window.addEventListener("keyup",function(e){
+    console.log(e); 
+})
