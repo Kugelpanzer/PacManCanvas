@@ -13,6 +13,13 @@ const dir = {
     down:2,
     left:3
 }
+const type={
+    wall : 0,
+    player :1,
+    pallet : 2,
+    super_pallet:3,
+    ghost:4,
+}
 const playerSpriteData = {
     src:"Assets/pacman.png",
     spriteX:200,
@@ -23,39 +30,72 @@ const playerSpriteData = {
     height:80,
 
 }
-
+const wall_list = [];
 class GameObject{
-    constructor(x,y,width,height){
+    constructor(x,y,width,height,solid = false){
+        //solid var determines wheter movable object can pass threw or not
+        //if object is solid movable object cant  threw it
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+        this.solid = solid;
     }
+
+    checkCollision(otherObject){
+        let x1=this.x;
+        let x2=this.x+this.width;
+        let x3=otherObject.x;
+        let x4=otherObject.x+ otherObject.width;
+        let y1=this.y;
+        let y2=this.y+this.height;
+        let y3= otherObject.y;
+        let y4= otherObject.y+otherObject.height
+        if(
+             (( x1>=x3 && x1<=x4) || (x3>=x1 &&x3<=x2)) 
+        &&   ((y1>=y3 && y1<y4) ||(y3>=y1 && y3<=y2))
+        )
+        {
+            return true;
+        }else{
+            return false;
+        }
+    }
+    showCollider(){
+        ctx.beginPath();    
+        ctx.rect(this.x,this.y,this.width,this.height);
+        ctx.stroke();
+    }
+    moveRelative(x,y)//moves sprite relative to the current position by x,y
+    {
+        this.x+=x;
+        this.y+=y;
+    }
+
 
     
 }
 
 class WallObject extends GameObject{
-    constructor(x,y,width,height){
-        super(x,y,width,height)
+    constructor(x,y,width,height,solid = true){
+        super(x,y,width,height,solid)
+        wall_list.push(this);
         
     }
 
 }
 
 class MovableObject extends GameObject{
-    constructor(x,y,image_data){
+    constructor(x,y,image_data,solid = false){
+        super(x,y,image_data.width,image_data.height,solid)
         this.image_data = image_data;
         this.image = new Image();
         this.image.src = this.image_data.src;
         this.move(x,y);
-        this.x = x;
-        this.y = y;
         this.moving = false;
-        this.width = image_data.width;
-        this.height = image_data.height;
+        this.futureMove = new GameObject(this.x,this.y,this.width,this.height)
     }
-    #renderSprite(x,y){
+    renderSprite(x,y){
         ctx.drawImage(this.image,
             this.image_data.spriteX,
             this.image_data.spriteY,
@@ -69,29 +109,92 @@ class MovableObject extends GameObject{
     }
     render()//renders sprite at current location
     {
-        this.#renderSprite(this.x,this.y);
+        this.renderSprite(this.x,this.y);
     }
     move(x,y)//moves sprite to x,y
     {
         this.x=x;
         this.y=y;
-        this.#renderSprite(x,y);
+        this.renderSprite(x,y);
 
     }
     moveRelative(x,y)//moves sprite relative to the current position by x,y
     {
         this.x+=x;
         this.y+=y;
-        this.#renderSprite(this.x,this.y);
+        this.renderSprite(this.x,this.y);
+    }
+
+    checkMoveCollision(x,y,check_list)
+    {
+            //checks if object can move, if solid object is in front moves to solid object and stops
+            //check_list is list of game objects that will be checked for collision
+            let vertical = true
+            let value = y
+            if(x!= 0)
+            {
+            vertical = false;
+            value = x;
+            }
+            this.futureMove.moveRelative(x,y)
+            for(let ch in check_list){
+                if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
+                    if(vertical){
+                        this.futureMove.moveRelative(-x,-y);
+                        for(let i =0;i<y;i++)
+                        {
+                            this.futureMove.moveRelative(x,i);
+                            if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
+                                return --i;
+                            }
+                        }
+                    }else{
+                        this.futureMove.moveRelative(-x,-y);
+                        for(let i=0;i<x;i++)
+                        {
+                            this.futureMove.moveRelative(i,y);
+                            if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
+                                return --i;
+                            }
+                        }
+                    }
+                }
+            }
+            return -1;
+    }
+
+    moveWithCollision(x,y,check_list){
+        let dis= this.checkMoveCollision(x,y,check_list)
+        let vertical =true;
+        console.log(dis);   
+        if(x!= 0) vertical =false;
+        if(dis==-1){
+            this.moveRelative(x,y);
+        }
+        else
+        {
+            if(vertical) 
+            {
+            
+            this.moveRelative(x,dis);
+            this.direction = dir.idle;
+            }
+            else 
+            {
+                this.moveRelative(dis,y);
+                this.direction = dir.idle;
+            }
+        }
     }
 }
 
 class PlayerObject extends MovableObject{
-    constructor(x,y,image_data,speed=1){
-        super(x,y,image_data)
+    constructor(x,y,image_data,speed=1,solid = false){
+        super(x,y,image_data,solid)
         this.direction=-1
         this.speed = speed;
         PlayerObject.initPlayerMovement(this);
+        this.type = type.player;
 
     }
 
@@ -112,7 +215,8 @@ class PlayerObject extends MovableObject{
             }
         })
         window.addEventListener("keyup",function(e){
-            console.log(e); 
+           // console.log(e); 
+           //instance.direction= dir.idle;
         })
      }
     executePlayerMovement(){
@@ -120,28 +224,30 @@ class PlayerObject extends MovableObject{
             this.render();
         }
         else if(this.direction == dir.up){
-            this.moveRelative(0,-this.speed);
+            this.moveWithCollision(0,-this.speed,wall_list);
         }
         else if(this.direction == dir.right){
-            this.moveRelative(this.speed,0);
+            this.moveWithCollision(this.speed,0,wall_list);
         }
         else if(this.direction == dir.down){
-            this.moveRelative(0,this.speed);
+            this.moveWithCollision(0,this.speed,wall_list);
         }
         else if(this.direction == dir.left){
-            this.moveRelative(-this.speed,0);
+            this.moveWithCollision(-this.speed,0,wall_list);
         }
     }
 }
 
 const player =new PlayerObject(60,50,playerSpriteData,5);
-//const player2 =new PlayerObject(200,50,playerSpriteData);
+const testObject =new WallObject(200,50,80,80,true);
 
 function update(){
     //console.log("update");
     ctx.clearRect(0,0,canvas.width,canvas.height);
     player.executePlayerMovement();
-    //player2.render();
+    player.showCollider();
+    testObject.showCollider();
+    //console.log(player2.checkCollision(player));
     requestAnimationFrame(update);
 }
 
