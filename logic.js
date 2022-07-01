@@ -4,12 +4,7 @@ const ctx = canvas.getContext('2d');
 canvas.width = 520;
 canvas.height = 520;
 
-class WallObject{
-    constructor(x,y){
-        
-    }
 
-}
 
 const dir = {
     idle:-1,
@@ -29,7 +24,26 @@ const playerSpriteData = {
 
 }
 
-class MovableObject{
+class GameObject{
+    constructor(x,y,width,height){
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+    }
+
+    
+}
+
+class WallObject extends GameObject{
+    constructor(x,y,width,height){
+        super(x,y,width,height)
+        
+    }
+
+}
+
+class MovableObject extends GameObject{
     constructor(x,y,image_data){
         this.image_data = image_data;
         this.image = new Image();
@@ -38,6 +52,8 @@ class MovableObject{
         this.x = x;
         this.y = y;
         this.moving = false;
+        this.width = image_data.width;
+        this.height = image_data.height;
     }
     #renderSprite(x,y){
         ctx.drawImage(this.image,
@@ -98,7 +114,7 @@ class PlayerObject extends MovableObject{
         window.addEventListener("keyup",function(e){
             console.log(e); 
         })
-    }
+     }
     executePlayerMovement(){
         if(this.direction==dir.idle){
             this.render();
