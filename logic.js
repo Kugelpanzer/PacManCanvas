@@ -11,12 +11,12 @@ class WallObject{
 
 }
 
-const directions = {
+const dir = {
     idle:-1,
-    north:0,
-    east:1,
-    south:2,
-    west:3
+    up:0,
+    right:1,
+    down:2,
+    left:3
 }
 const playerSpriteData = {
     src:"Assets/pacman.png",
@@ -71,31 +71,63 @@ class MovableObject{
 }
 
 class PlayerObject extends MovableObject{
-    constructor(x,y,image_data){
+    constructor(x,y,image_data,speed=1){
         super(x,y,image_data)
-        this.directions=-1
+        this.direction=-1
+        this.speed = speed;
+        PlayerObject.initPlayerMovement(this);
 
     }
 
+    static initPlayerMovement(instance){
+        window.addEventListener("keydown",function(e){
+            if(e.key == "d"){
+                instance.direction= dir.right;
+            }
+            if(e.key == "w"){
+                instance.direction = dir.up;
+            }
+            if(e.key == "s"){
+                instance.direction = dir.down;
+            }
 
+            if(e.key == "a"){
+                instance.direction = dir.left;
+            }
+        })
+        window.addEventListener("keyup",function(e){
+            console.log(e); 
+        })
+    }
+    executePlayerMovement(){
+        if(this.direction==dir.idle){
+            this.render();
+        }
+        else if(this.direction == dir.up){
+            this.moveRelative(0,-this.speed);
+        }
+        else if(this.direction == dir.right){
+            this.moveRelative(this.speed,0);
+        }
+        else if(this.direction == dir.down){
+            this.moveRelative(0,this.speed);
+        }
+        else if(this.direction == dir.left){
+            this.moveRelative(-this.speed,0);
+        }
+    }
 }
 
-const player =new PlayerObject(60,50,playerSpriteData);
+const player =new PlayerObject(60,50,playerSpriteData,5);
 //const player2 =new PlayerObject(200,50,playerSpriteData);
 
 function update(){
     //console.log("update");
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    player.render();
+    player.executePlayerMovement();
     //player2.render();
     requestAnimationFrame(update);
 }
 
 
 update();
-window.addEventListener("keydown",function(e){
-    console.log(e); 
-})
-window.addEventListener("keyup",function(e){
-    console.log(e); 
-})
