@@ -53,7 +53,7 @@ class GameObject{
         let y4= otherObject.y+otherObject.height
         if(
              (( x1>=x3 && x1<=x4) || (x3>=x1 &&x3<=x2)) 
-        &&   ((y1>=y3 && y1<y4) ||(y3>=y1 && y3<=y2))
+        &&   ((y1>=y3 && y1<=y4) ||(y3>=y1 && y3<=y2))
         )
         {
             return true;
@@ -94,6 +94,7 @@ class MovableObject extends GameObject{
         this.move(x,y);
         this.moving = false;
         this.futureMove = new GameObject(this.x,this.y,this.width,this.height)
+        //this.futureMoveChange = new GameObject(this.x, this.y, this.width, this.height); // whenever player wants to change direction
     }
     renderSprite(x,y){
         ctx.drawImage(this.image,
@@ -139,53 +140,96 @@ class MovableObject extends GameObject{
             this.futureMove.moveRelative(x,y)
             for(let ch in check_list){
                 if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
-                    if(vertical){
+                    if(vertical)
+                    {
                         this.futureMove.moveRelative(-x,-y);
-                        for(let i =0;i<y;i++)
+                        if(y>0)
                         {
-                            this.futureMove.moveRelative(x,i);
-                            if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
-                                return --i;
+                            for(let i =0;i<y;i++)
+                            {
+                                this.futureMove.moveRelative(x,i);
+
+                                if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
+                                    this.futureMove.moveRelative(x,-1);
+                                    console.log(i);
+                                    return i;
+                                }
                             }
                         }
-                    }else{
-                        this.futureMove.moveRelative(-x,-y);
-                        for(let i=0;i<x;i++)
+                        else
                         {
-                            this.futureMove.moveRelative(i,y);
-                            if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
-                                return --i;
+                            for(let i =0;i>y;i--)
+                            {
+                                this.futureMove.moveRelative(x,i);
+
+                                if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
+                                    this.futureMove.moveRelative(x,1);
+                                    console.log(i);
+                                    return i;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        this.futureMove.moveRelative(-x,-y);
+                        if(x>0)
+                        {
+                            for(let i=0;i<x;i++)
+                            {
+                                this.futureMove.moveRelative(i,y);
+
+
+                                if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid)
+                                {
+
+                                    this.futureMove.moveRelative(-1,y);
+                                    return i;
+                                }
+
+                            }
+                        }
+                        else
+                        {
+                            for(let i=0;i>x;i--)
+                            {
+                                this.futureMove.moveRelative(i,y);
+
+
+                                if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid)
+                                {
+
+                                    this.futureMove.moveRelative(1,y);
+                                    return i;
+                                }
+
                             }
                         }
                     }
                 }
             }
-            return -1;
+            return null;
     }
 
     moveWithCollision(x,y,check_list){
-        let dis= this.checkMoveCollision(x,y,check_list)
-        let vertical =true;
-        console.log(dis);   
-        if(x!= 0) vertical =false;
-        if(dis==-1){
-            this.moveRelative(x,y);
-        }
-        else
+        let dis= this.checkMoveCollision(x,y,check_list);
+        /*if(dis!= null)
         {
-            if(vertical) 
-            {
             
-            this.moveRelative(x,dis);
-            this.direction = dir.idle;
-            }
-            else 
+            if(x ==0)
             {
-                this.moveRelative(dis,y);
-                this.direction = dir.idle;
+                this.moveRelative(x,dis-1);
+            }
+            else if(y== 0){
+                this.moveRelative(dis-1,y);
             }
         }
-    }
+        else{*/
+        
+        this.move(this.futureMove.x,this.futureMove.y);
+
+        }
+    
 }
 
 class PlayerObject extends MovableObject{
@@ -220,6 +264,7 @@ class PlayerObject extends MovableObject{
         })
      }
     executePlayerMovement(){
+       // console.log(this.direction);
         if(this.direction==dir.idle){
             this.render();
         }
@@ -238,15 +283,17 @@ class PlayerObject extends MovableObject{
     }
 }
 
-const player =new PlayerObject(60,50,playerSpriteData,5);
+const player =new PlayerObject(60,50,playerSpriteData,4);
 const testObject =new WallObject(200,50,80,80,true);
-
+const testObject2 =new WallObject(200,213,80,80,true);
 function update(){
     //console.log("update");
     ctx.clearRect(0,0,canvas.width,canvas.height);
     player.executePlayerMovement();
     player.showCollider();
+    player.futureMove.showCollider();
     testObject.showCollider();
+    testObject2.showCollider();
     //console.log(player2.checkCollision(player));
     requestAnimationFrame(update);
 }
