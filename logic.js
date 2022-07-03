@@ -42,15 +42,15 @@ class GameObject{
         this.solid = solid;
     }
 
-    checkCollision(otherObject){
+    checkCollision(other_object){
         let x1=this.x;
         let x2=this.x+this.width;
-        let x3=otherObject.x;
-        let x4=otherObject.x+ otherObject.width;
+        let x3=other_object.x;
+        let x4=other_object.x+ other_object.width;
         let y1=this.y;
         let y2=this.y+this.height;
-        let y3= otherObject.y;
-        let y4= otherObject.y+otherObject.height
+        let y3= other_object.y;
+        let y4= other_object.y+other_object.height
         if(
              (( x1>=x3 && x1<=x4) || (x3>=x1 &&x3<=x2)) 
         &&   ((y1>=y3 && y1<=y4) ||(y3>=y1 && y3<=y2))
@@ -60,6 +60,14 @@ class GameObject{
         }else{
             return false;
         }
+    }
+    checkCollisionList(check_list){
+        for(let ch in check_list){
+            if(this.checkCollision( check_list[ch])){
+                return true;
+            }
+        }
+        return false;
     }
     showCollider(){
         ctx.beginPath();    
@@ -72,7 +80,12 @@ class GameObject{
         this.y+=y;
     }
 
+    move(x,y)//moves sprite to x,y
+    {
+        this.x=x;
+        this.y=y;   
 
+    }
     
 }
 
@@ -211,24 +224,25 @@ class MovableObject extends GameObject{
             return null;
     }
 
-    moveWithCollision(x,y,check_list){
-        let dis= this.checkMoveCollision(x,y,check_list);
-        /*if(dis!= null)
-        {
-            
-            if(x ==0)
-            {
-                this.moveRelative(x,dis-1);
-            }
-            else if(y== 0){
-                this.moveRelative(dis-1,y);
-            }
-        }
-        else{*/
+    moveWithCollision(x,y,check_list)
+    {
+    let dis= this.checkMoveCollision(x,y,check_list);
+    /*if(dis!= null)
+    {
         
-        this.move(this.futureMove.x,this.futureMove.y);
-
+        if(x ==0)
+        {
+            this.moveRelative(x,dis-1);
         }
+        else if(y== 0){
+            this.moveRelative(dis-1,y);
+        }
+    }
+    else{*/
+    
+    this.move(this.futureMove.x,this.futureMove.y);
+
+    }
     
 }
 
@@ -264,34 +278,85 @@ class PlayerObject extends MovableObject{
            //instance.direction= dir.idle;
         })
      }
-    checkDirection()
-    {
-        if(this.wantedDirection!= this.direction)
+
+    checkWantedDirection(check_list){
+        switch(this.direction)
         {
+            case dir.up:
+
+
+                if(this.wantedDirection == dir.left)
+                {
+                    //this.futureMove.move(this.x,this.y);
+                    this.futureMove.moveRelative(-this.speed,0);
+                    let curr = 0;
+                    for(let i =0; i<this.speed;i++)
+                    {
+                        
+                        this.futureMove.moveRelative(0,-i);
+                        if(!this.futureMove.checkCollisionList(check_list))
+                        {
+                            console.log("sada");
+                            this.move(this.futureMove.x,this.futureMove.y);
+                            this.direction= this.wantedDirection;
+                            console.log(i);
+                            curr=i;
+                            break;
+                        }
+                        
+                    }
+                    this.futureMove.moveRelative(this.speed,0);
+                    
+                }
+                if(this.wantedDirection == dir.down)
+                {
+                    this.direction=this.wantedDirection;
+                }
+                break;
+            case dir.down:
+                break;
+            case dir.left:
+                break; 
+            case dir.right:
+                break;
 
         }
     }
+
     executePlayerMovement(){
-       // console.log(this.direction);
-        if(this.direction==dir.idle){
-            this.render();
+        if(this.wantedDirection!= this.direction)
+        {
+
+            if(this.direction==dir.idle){
+                this.direction = this.wantedDirection;
+
+            }
+            this.checkWantedDirection(wall_list);
         }
-        else if(this.direction == dir.up){
-            this.moveWithCollision(0,-this.speed,wall_list);
-        }
-        else if(this.direction == dir.right){
-            this.moveWithCollision(this.speed,0,wall_list);
-        }
-        else if(this.direction == dir.down){
-            this.moveWithCollision(0,this.speed,wall_list);
-        }
-        else if(this.direction == dir.left){
-            this.moveWithCollision(-this.speed,0,wall_list);
+        else
+        {
+            this.direction =this.wantedDirection;
+            if(this.direction==dir.idle){
+                this.render();
+            }
+            else if(this.direction == dir.up){
+                this.moveWithCollision(0,-this.speed,wall_list);
+            }
+            else if(this.direction == dir.right){
+                this.moveWithCollision(this.speed,0,wall_list);
+            }
+            else if(this.direction == dir.down){
+                this.moveWithCollision(0,this.speed,wall_list);
+            }
+            else if(this.direction == dir.left){
+                this.moveWithCollision(-this.speed,0,wall_list);
+            }
         }
     }
 }
 
-const player =new PlayerObject(60,50,playerSpriteData,4);
+const player =new PlayerObject(281,230,playerSpriteData,4);
+
 const testObject =new WallObject(200,50,80,80,true);
 const testObject2 =new WallObject(200,213,80,80,true);
 function update(){
