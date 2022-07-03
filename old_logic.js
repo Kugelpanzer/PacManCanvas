@@ -97,11 +97,7 @@ class WallObject extends GameObject{
     }
 
 }
-class CrossroadObject extends GameObject{
-    constructor(x,y,width,height,solid=false){
-        super(x,y,width,height,solid)
-    }
-}
+
 class MovableObject extends GameObject{
     constructor(x,y,image_data,solid = false){
         super(x,y,image_data.width,image_data.height,solid)
@@ -258,7 +254,6 @@ class PlayerObject extends MovableObject{
         PlayerObject.initPlayerMovement(this);
         this.type = type.player;
         this.wantedDirection =-1;
-        this.allowedMovement = [];
 
     }
 
@@ -284,26 +279,77 @@ class PlayerObject extends MovableObject{
         })
      }
 
+    checkWantedDirection(check_list){
+        switch(this.direction)
+        {
+            case dir.up:
+
+
+                if(this.wantedDirection == dir.left)
+                {
+                    //this.futureMove.move(this.x,this.y);
+                    this.futureMove.moveRelative(-this.speed,0);
+                    let curr = 0;
+                    for(let i =0; i<this.speed;i++)
+                    {
+                        
+                        this.futureMove.moveRelative(0,-i);
+                        if(!this.futureMove.checkCollisionList(check_list))
+                        {
+                            this.move(this.futureMove.x,this.futureMove.y);
+                            this.direction= this.wantedDirection;
+                            curr=i;
+                            break;
+                        }
+                        
+                    }
+                    this.futureMove.moveRelative(this.speed,0);
+                    
+                }
+                if(this.wantedDirection == dir.down)
+                {
+                    this.direction=this.wantedDirection;
+                }
+                break;
+            case dir.down:
+                break;
+            case dir.left:
+                break; 
+            case dir.right:
+                break;
+
+        }
+    }
 
     executePlayerMovement(){
+        if(this.wantedDirection!= this.direction)
+        {
 
-        this.direction =this.wantedDirection;
-        if(this.direction==dir.idle){
-            this.render();
+            if(this.direction==dir.idle){
+                this.direction = this.wantedDirection;
+
+            }
+            this.checkWantedDirection(wall_list);
         }
-        else if(this.direction == dir.up){
-            this.moveWithCollision(0,-this.speed,wall_list);
+        else
+        {
+            this.direction =this.wantedDirection;
+            if(this.direction==dir.idle){
+                this.render();
+            }
+            else if(this.direction == dir.up){
+                this.moveWithCollision(0,-this.speed,wall_list);
+            }
+            else if(this.direction == dir.right){
+                this.moveWithCollision(this.speed,0,wall_list);
+            }
+            else if(this.direction == dir.down){
+                this.moveWithCollision(0,this.speed,wall_list);
+            }
+            else if(this.direction == dir.left){
+                this.moveWithCollision(-this.speed,0,wall_list);
+            }
         }
-        else if(this.direction == dir.right){
-            this.moveWithCollision(this.speed,0,wall_list);
-        }
-        else if(this.direction == dir.down){
-            this.moveWithCollision(0,this.speed,wall_list);
-        }
-        else if(this.direction == dir.left){
-            this.moveWithCollision(-this.speed,0,wall_list);
-        }
-        
     }
 }
 
