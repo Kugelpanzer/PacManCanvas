@@ -239,23 +239,24 @@ class PlayerObject extends MovableObject{
         this.speed = speed;
         PlayerObject.initPlayerMovement(this);
         this.type = type.player;
+        this.wantedDirection =-1;
 
     }
 
     static initPlayerMovement(instance){
         window.addEventListener("keydown",function(e){
             if(e.key == "d"){
-                instance.direction= dir.right;
+                instance.wantedDirection= dir.right;
             }
             if(e.key == "w"){
-                instance.direction = dir.up;
+                instance.wantedDirection = dir.up;
             }
             if(e.key == "s"){
-                instance.direction = dir.down;
+                instance.wantedDirection = dir.down;
             }
 
             if(e.key == "a"){
-                instance.direction = dir.left;
+                instance.wantedDirection = dir.left;
             }
         })
         window.addEventListener("keyup",function(e){
@@ -263,6 +264,13 @@ class PlayerObject extends MovableObject{
            //instance.direction= dir.idle;
         })
      }
+    checkDirection()
+    {
+        if(this.wantedDirection!= this.direction)
+        {
+
+        }
+    }
     executePlayerMovement(){
        // console.log(this.direction);
         if(this.direction==dir.idle){
