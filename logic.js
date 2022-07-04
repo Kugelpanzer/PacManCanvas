@@ -86,6 +86,9 @@ class GameObject{
         this.y=y;   
 
     }
+    distance(gameObject){
+        return Math.round( Math.sqrt( (this.x-gameObject.x)*(this.x-gameObject.x) + (this.y-gameObject.y)*(this.y-gameObject.y)));
+    }
     
 }
 
@@ -98,8 +101,25 @@ class WallObject extends GameObject{
 
 }
 class CrossroadObject extends GameObject{
-    constructor(x,y,width,height,solid=false){
+    constructor(x,y,dirList,crossList,width,height,solid=false){
         super(x,y,width,height,solid)
+        this.dirList = dirList;
+        this.crossList=  crossList;
+    }
+    getCrossData()//gest list of next crossroads, and available directions
+    {
+        return {
+            dirList:this.dirList,
+            crossList:this.crossList
+        }
+    }
+
+
+    showCollider(){
+        ctx.beginPath();
+        ctx.strokeStyle = "green";  
+        ctx.rect(this.x,this.y,this.width,this.height);
+        ctx.stroke();
     }
 }
 class MovableObject extends GameObject{
@@ -111,7 +131,8 @@ class MovableObject extends GameObject{
         this.move(x,y);
         this.moving = false;
         this.futureMove = new GameObject(this.x,this.y,this.width,this.height)
-        //this.futureMoveChange = new GameObject(this.x, this.y, this.width, this.height); // whenever player wants to change direction
+        this.crossList = [];
+        this.availableMoves =[];
     }
     renderSprite(x,y){
         ctx.drawImage(this.image,
@@ -142,6 +163,22 @@ class MovableObject extends GameObject{
         this.y+=y;
         this.renderSprite(this.x,this.y);
     }
+    checkCross()
+    {
+        for(let i in crossList){
+            if(this.distance(crossList[i])<=this.speed+1){
+                return crossList[i];
+            }
+        }
+        return null;
+    }
+    setToCross(){
+        let cross = this.checkCross();
+        if(cross != null){
+            this.move(cross.x,cross.y)
+            let crossData = cross.getCrossData();
+        }
+    }
 
     checkMoveCollision(x,y,check_list)
     {
@@ -156,7 +193,8 @@ class MovableObject extends GameObject{
             }
             this.futureMove.moveRelative(x,y)
             for(let ch in check_list){
-                if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
+                if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid)
+                {
                     if(vertical)
                     {
                         this.futureMove.moveRelative(-x,-y);
