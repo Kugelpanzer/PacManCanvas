@@ -4,6 +4,10 @@ const ctx = canvas.getContext('2d');
 canvas.width = 520;
 canvas.height = 520;
 
+function Rand(from, to){
+
+    return Math.floor(Math.random() * (to-from)) + from;
+}
 
 const dir = {
     idle:-1,
@@ -29,7 +33,19 @@ const playerSpriteData = {
     height:80,
 
 }
+const ghostSpriteData1 ={
+    src:"Assets/ghost.png",
+    spriteX:240,
+    spriteY:20,
+    sprite_width:110,
+    sprite_height:110,
+    width:80,
+    height:80,
+
+}
+
 const wall_list = [];
+
 class GameObject{
     constructor(x,y,width,height,solid = false){
         //solid var determines wheter movable object can pass threw or not
@@ -100,10 +116,10 @@ class WallObject extends GameObject{
 
 }
 class CrossroadObject extends GameObject{
-    constructor(x,y,dirList,crossList,width,height,solid=false){
+    constructor(x,y,dirList,width,height,solid=false){
         super(x,y,width,height,solid)
         this.dirList = dirList;
-        this.crossList=  crossList;
+        this.crossList=  [];
     }
     getCrossData()//gest list of next crossroads, and available directions
     {
@@ -113,25 +129,23 @@ class CrossroadObject extends GameObject{
         }
     }
 
-
     showCollider(){
         ctx.beginPath();
         ctx.strokeStyle = "green";  
         ctx.rect(this.x,this.y,this.width,this.height);
         ctx.stroke();
+        ctx.strokeStyle = "black"; 
     }
 }
 class MovableObject extends GameObject{
-    constructor(x,y,image_data,solid = false){
+    constructor(x,y,image_data,speed = 1,solid = false){
         super(x,y,image_data.width,image_data.height,solid)
         this.image_data = image_data;
         this.image = new Image();
         this.image.src = this.image_data.src;
         this.move(x,y);
-        this.moving = false;
         this.futureMove = new GameObject(this.x,this.y,this.width,this.height)
-        this.crossList = [];
-        this.availableDirections =[];
+        this.speed = speed;
     }
     renderSprite(x,y){
         ctx.drawImage(this.image,
@@ -161,24 +175,6 @@ class MovableObject extends GameObject{
         this.x+=x;
         this.y+=y;
         this.renderSprite(this.x,this.y);
-    }
-    checkCross()
-    {
-        for(let i in crossList){
-            if(this.distance(crossList[i])<=this.speed+1){
-                return crossList[i];
-            }
-        }
-        return null;
-    }
-    setToCross(){
-        let cross = this.checkCross();
-        if(cross != null){
-            this.move(cross.x,cross.y);
-            let crossData = cross.getCrossData();
-            this.availableDirections = crossData.dirList;
-            this.crossList = crossData.crossList;
-        }
     }
 
     checkMoveCollision(x,y,check_list)
@@ -270,30 +266,33 @@ class MovableObject extends GameObject{
     moveWithCollision(x,y,check_list)
     {
     let dis= this.checkMoveCollision(x,y,check_list);
-    /*if(dis!= null)
-    {
-        
-        if(x ==0)
-        {
-            this.moveRelative(x,dis-1);
-        }
-        else if(y== 0){
-            this.moveRelative(dis-1,y);
-        }
-    }
-    else{*/
-    
     this.move(this.futureMove.x,this.futureMove.y);
 
+    }
+    moveDirection(){
+        if(this.direction==dir.idle){
+            this.render();
+        }
+        else if(this.direction == dir.up){
+            this.moveRelative(0,-this.speed);
+        }
+        else if(this.direction == dir.right){
+            this.moveRelative(this.speed,0);
+        }
+        else if(this.direction == dir.down){
+            this.moveRelative(0,this.speed);
+        }
+        else if(this.direction == dir.left){
+            this.moveRelative(-this.speed,0);
+        }
     }
     
 }
 
 class PlayerObject extends MovableObject{
     constructor(x,y,image_data,speed=1,solid = false){
-        super(x,y,image_data,solid)
+        super(x,y,image_data,speed,solid)
         this.direction=-1
-        this.speed = speed;
         PlayerObject.initPlayerMovement(this);
         this.type = type.player;
         this.wantedDirection =-1;
@@ -325,9 +324,7 @@ class PlayerObject extends MovableObject{
 
     executePlayerMovement(){
 
-        if(this.availableDirections.includes(this.wantedDirection)){
-            this.direction =this.wantedDirection;
-        }
+        this.direction =this.wantedDirection;
         
         if(this.direction==dir.idle){
             this.render();
@@ -348,18 +345,83 @@ class PlayerObject extends MovableObject{
     }
 }
 
+
+class GhostBase extends MovableObject{
+    constructor(x,y,image_data,speed=1,solid= false){
+        super(x,y,image_data,speed,solid);
+        this.crossList = [];
+        this.availableDirections =[];
+        this.type = type.ghost;
+        this.direction = dir.idle;
+    }
+    checkCross()
+    {
+        for(let i in this.crossList){
+            
+            if(this.distance(this.crossList[i])<=this.speed+1){
+                
+                return this.crossList[i];
+            }
+        }
+        return null;
+    }
+    setToCross(){
+        let cross = this.checkCross();
+        if(cross != null){
+
+            this.move(cross.x,cross.y);
+            let crossData = cross.getCrossData();
+            console.log(crossData);
+            this.availableDirections = crossData.dirList;
+            this.crossList = crossData.crossList;
+            this.direction = dir.idle;
+        }
+    }
+
+    pathMove(){
+        if(this.direction == dir.idle){
+            this.render();
+            this.direction = this.availableDirections[Rand(0,this.availableDirections.length)];
+        }
+        this.setToCross();
+        this.moveDirection();
+
+    }
+
+}
+
 const player =new PlayerObject(281,230,playerSpriteData,3);
 
 const testObject =new WallObject(200,50,80,80,true);
 const testObject2 =new WallObject(200,213,80,80,true);
+
+const ghost1 = new GhostBase(20,100,ghostSpriteData1,5);
+ghost1.availableDirections = [dir.up,dir.down];
+const cross1 = new CrossroadObject(20,20,[dir.down,dir.right],80,80);
+const cross2 = new CrossroadObject(20,300,[dir.up,dir.right],80,80);
+const cross3 = new CrossroadObject(380,300,[dir.up,dir.left],80,80);
+const cross4 = new CrossroadObject(380,20,[dir.down,dir.left],80,80);
+cross1.crossList=[cross2,cross4];
+cross2.crossList=[cross1,cross3];
+cross3.crossList= [cross2,cross4];
+cross4.crossList = [cross1,cross3]
+ghost1.crossList =[cross1,cross2];
 function update(){
-    //console.log("update");
     ctx.clearRect(0,0,canvas.width,canvas.height);
+    ghost1.pathMove();
+    ghost1.showCollider();
+    //console.log("update");
+
     player.executePlayerMovement();
     player.showCollider();
     //player.futureMove.showCollider();
     testObject.showCollider();
     testObject2.showCollider();
+    cross1.showCollider();
+    cross2.showCollider() ;
+    cross3.showCollider();
+    cross4.showCollider();
+
     //console.log(player2.checkCollision(player));
     requestAnimationFrame(update);
 }

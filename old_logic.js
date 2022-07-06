@@ -303,12 +303,17 @@ class PlayerObject extends MovableObject{
                         }
                         
                     }
+                    console.log(curr);
                     this.futureMove.moveRelative(this.speed,0);
                     
                 }
                 if(this.wantedDirection == dir.down)
                 {
                     this.direction=this.wantedDirection;
+                }
+                else
+                { 
+                    this.moveWithCollision(0,-this.speed,wall_list);
                 }
                 break;
             case dir.down:
@@ -353,16 +358,16 @@ class PlayerObject extends MovableObject{
     }
 }
 
-const player =new PlayerObject(281,230,playerSpriteData,3);
+const player =new PlayerObject(281,230,playerSpriteData,1);
 
-const testObject =new WallObject(200,50,80,80,true);
+const testObject =new WallObject(200,50,80,160,true);
 const testObject2 =new WallObject(200,213,80,80,true);
 function update(){
     //console.log("update");
     ctx.clearRect(0,0,canvas.width,canvas.height);
     player.executePlayerMovement();
     player.showCollider();
-    //player.futureMove.showCollider();
+    player.futureMove.showCollider();
     testObject.showCollider();
     testObject2.showCollider();
     //console.log(player2.checkCollision(player));
