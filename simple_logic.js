@@ -9,6 +9,21 @@ function Rand(from, to){
     return Math.floor(Math.random() * (to-from)) + from;
 }
 
+function DrawLine(x1,y1,x2,y2){
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+}
+
+//uzeto sa stack overflowa
+function LineIntersect (p1, p2, p3, p4) {
+    function CCW(p1, p2, p3) {
+        return (p3.y - p1.y) * (p2.x - p1.x) > (p2.y - p1.y) * (p3.x - p1.x);
+    }
+    return (CCW(p1, p3, p4) != CCW(p2, p3, p4)) && (CCW(p1, p2, p3) != CCW(p1, p2, p4));
+}
+
 const dir = {
     idle:-1,
     up:0,
@@ -111,7 +126,27 @@ class WallObject extends GameObject{
     constructor(x,y,width,height,solid = true){
         super(x,y,width,height,solid)
         wall_list.push(this);
+        //point of wall
+        this.p = []
+        this.p.push({x:x,y:y});
+        this.p.push({x:x+width,y:y});
+        this.p.push({x:x,y:y+height});
+        this.p.push({x:x+width,y:y+height});
         
+    }
+    
+    //p1,p2 -> positions of line x,y
+    intersects(p1,p2){
+        if(LineIntersect(p1,p2,this.p[0],this.p[1]))
+            return true;
+        else if(LineIntersect(p1,p2,this.p[0],this.p[2]))
+            return true;
+        else if(LineIntersect(p1,p2,this.p[1],this.p[3]))
+            return true;
+        else if(LineIntersect(p1,p2,this.p[2],this.p[3]))
+            return true;
+
+        return false;
     }
 
 }
@@ -203,7 +238,6 @@ class MovableObject extends GameObject{
 
                                 if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
                                     this.futureMove.moveRelative(x,-1);
-                                    console.log(i);
                                     return i;
                                 }
                             }
@@ -216,7 +250,6 @@ class MovableObject extends GameObject{
 
                                 if(this.futureMove.checkCollision(check_list[ch]) && check_list[ch].solid){
                                     this.futureMove.moveRelative(x,1);
-                                    console.log(i);
                                     return i;
                                 }
                             }
@@ -269,23 +302,7 @@ class MovableObject extends GameObject{
     this.move(this.futureMove.x,this.futureMove.y);
 
     }
-    moveDirection(){
-        if(this.direction==dir.idle){
-            this.render();
-        }
-        else if(this.direction == dir.up){
-            this.moveRelative(0,-this.speed);
-        }
-        else if(this.direction == dir.right){
-            this.moveRelative(this.speed,0);
-        }
-        else if(this.direction == dir.down){
-            this.moveRelative(0,this.speed);
-        }
-        else if(this.direction == dir.left){
-            this.moveRelative(-this.speed,0);
-        }
-    }
+
     
 }
 
@@ -296,9 +313,11 @@ class PlayerObject extends MovableObject{
         PlayerObject.initPlayerMovement(this);
         this.type = type.player;
         this.wantedDirection =-1;
-
+        
+        if(PlayerObject.instance == null)
+            PlayerObject.instance=  this;
     }
-
+    static instance= null;
     static initPlayerMovement(instance){
         window.addEventListener("keydown",function(e){
             if(e.key == "d"){
@@ -316,7 +335,6 @@ class PlayerObject extends MovableObject{
             }
         })
         window.addEventListener("keyup",function(e){
-           // console.log(e); 
            //instance.direction= dir.idle;
         })
      }
@@ -353,6 +371,24 @@ class GhostBase extends MovableObject{
         this.availableDirections =[];
         this.type = type.ghost;
         this.direction = dir.idle;
+        this.playerObj= PlayerObject.instance;
+    }
+    moveDirection(){
+        if(this.direction==dir.idle){
+            this.render();
+        }
+        else if(this.direction == dir.up){
+            this.moveRelative(0,-this.speed);
+        }
+        else if(this.direction == dir.right){
+            this.moveRelative(this.speed,0);
+        }
+        else if(this.direction == dir.down){
+            this.moveRelative(0,this.speed);
+        }
+        else if(this.direction == dir.left){
+            this.moveRelative(-this.speed,0);
+        }
     }
     checkCross()
     {
@@ -363,22 +399,25 @@ class GhostBase extends MovableObject{
                 return this.crossList[i];
             }
         }
+
         return null;
     }
     setToCross(){
         let cross = this.checkCross();
+        this.pastCross = cross ;
         if(cross != null){
 
             this.move(cross.x,cross.y);
             let crossData = cross.getCrossData();
-            console.log(crossData);
             this.availableDirections = crossData.dirList;
             this.crossList = crossData.crossList;
             this.direction = dir.idle;
+            this.wantedDirection = dir.idle;
         }
     }
 
-    pathMove(){
+    randMove() // moves random regardless of pacman 
+    {
         if(this.direction == dir.idle){
             this.render();
             this.direction = this.availableDirections[Rand(0,this.availableDirections.length)];
@@ -388,7 +427,82 @@ class GhostBase extends MovableObject{
 
     }
 
+    spotMove() // moves random until he spots pacman, moves towards pacman while he sees him
+    {
+        if(this.checkLine(wall_list)){ 
+            this.getWantedDir();
+        }
+        if(this.direction == dir.idle){
+            this.render();
+            if(this.availableDirections.includes(this.wantedDirection)&& this.wantedDirection != dir.idle)
+            {
+                this.direction=this.wantedDirection;
+            }
+            else
+            {
+                this.direction = this.availableDirections[Rand(0,this.availableDirections.length)];
+            }
+
+        }
+        this.setToCross();
+        this.moveDirection();
+
+    }
+
+    chaseMove()//always moves closer to pacman
+    {
+
+    }
+
+    checkLine(check_list){
+        let p1 = {
+
+            x: this.x + (this.width/2),
+            y: this.y + (this.height/2)
+        }
+        let p2 = {
+
+            x: this.playerObj.x + (this.playerObj.width/2),
+            y: this.playerObj.y + (this.playerObj.height/2)
+        }
+        for(let i in check_list){
+           if(check_list[i].intersects(p1,p2))
+            {
+            return false;
+            }
+        }
+        DrawLine(p1.x,p1.y,p2.x,p2.y);
+        return true;
+    }
+    angle(){
+        //return Math.acos((this.x-this.playerObj.x)/this.distance(this.playerObj));
+        let sign = Math.sign((Math.asin((this.y-this.playerObj.y)/this.distance(this.playerObj))));
+        //console.log(sign);
+        return sign*(Math.acos((this.playerObj.x-this.x)/this.distance(this.playerObj)))*(180/Math.PI);
+    }
+
+    getWantedDir(){
+
+        let a= this.angle() ;
+        if(a>-45 && a<=45){
+            this.wantedDirection = dir.right;
+        }
+        else if(a>45 && a<=135){
+            this.wantedDirection=dir.up;
+        }
+        else if (a>-135 && a <=-45){
+            this.wantedDirection = dir.down;
+        }else if ( (a>135 && a<=180) ||(a<-135 && a >=-180)){
+            this.wantedDirection = dir.left ;
+        }
+        else{ 
+            this.wantedDirection = dir.idle;
+        }
+    }
+
 }
+
+
 
 const player =new PlayerObject(281,230,playerSpriteData,3);
 
@@ -408,8 +522,13 @@ cross4.crossList = [cross1,cross3]
 ghost1.crossList =[cross1,cross2];
 function update(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    ghost1.pathMove();
+    ghost1.spotMove();
+    //ghost1.render();
     ghost1.showCollider();
+    //ghost1.checkLine(wall_list);
+    //console.log(ghost1.distance(ghost1.playerObj));
+    ghost1.getWantedDir();
+   // console.log(ghost1.wantedDirection);
     //console.log("update");
 
     player.executePlayerMovement();
