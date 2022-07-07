@@ -119,7 +119,26 @@ class GameObject{
     distance(gameObject){
         return Math.round( Math.sqrt( (this.x-gameObject.x)*(this.x-gameObject.x) + (this.y-gameObject.y)*(this.y-gameObject.y)));
     }
-    
+    checkLine(check_list){
+        let p1 = {
+
+            x: this.x + (this.width/2),
+            y: this.y + (this.height/2)
+        }
+        let p2 = {
+
+            x: this.playerObj.x + (this.playerObj.width/2),
+            y: this.playerObj.y + (this.playerObj.height/2)
+        }
+        for(let i in check_list){
+           if(check_list[i].intersects(p1,p2))
+            {
+            return false;
+            }
+        }
+        DrawLine(p1.x,p1.y,p2.x,p2.y);
+        return true;
+    }
 }
 
 class WallObject extends GameObject{
@@ -150,11 +169,15 @@ class WallObject extends GameObject{
     }
 
 }
-class CrossroadObject extends GameObject{
+class CrossroadObject extends GameObject
+{
     constructor(x,y,dirList,width,height,solid=false){
         super(x,y,width,height,solid)
         this.dirList = dirList;
-        this.crossList=  [];
+        this.crossList =  [];
+        this.crossDist = {};
+        this.currDist= null;
+        this.crossDir = {}; // contains pointers to cross adjecent cross objects, and directions how to go to them
     }
     getCrossData()//gest list of next crossroads, and available directions
     {
@@ -171,7 +194,44 @@ class CrossroadObject extends GameObject{
         ctx.stroke();
         ctx.strokeStyle = "black"; 
     }
+
+    #calcCrossToCrossDis() // calculates every neighbouring crossroad distance
+    {
+        for(let i in this.crossList)
+        {
+            this.crossDist[this.crossDist[i]] = this.distance(this.crossDist[i]);
+        }
+        
+    }
+
+    checkDist(dist)
+    {
+        if(this.currDist == null || this.currDist > dist){
+            this.currDist = dist
+
+            for(let i in this.crossList)
+            {
+                this.crossList[i].checkDist(dist+this.crossList[i].crossDist[this]);
+            }
+        }
+    }
+
+    calcCross() //calculates crossroead distances from pacman
+    {
+        if(this.checkLine(wall_list))
+        {
+            let dist = this.distance(PlayerObject.instance);
+            this.currDist = dist;
+            for(let i in this.crossList)
+            { 
+                this.crossList[i].checkDist(dist+this.crossList[i].crossDist[this]);
+            }
+        }
+
+    }
 }
+
+
 class MovableObject extends GameObject{
     constructor(x,y,image_data,speed = 1,solid = false){
         super(x,y,image_data.width,image_data.height,solid)
@@ -305,6 +365,7 @@ class MovableObject extends GameObject{
 
     
 }
+
 
 class PlayerObject extends MovableObject{
     constructor(x,y,image_data,speed=1,solid = false){
@@ -454,26 +515,6 @@ class GhostBase extends MovableObject{
 
     }
 
-    checkLine(check_list){
-        let p1 = {
-
-            x: this.x + (this.width/2),
-            y: this.y + (this.height/2)
-        }
-        let p2 = {
-
-            x: this.playerObj.x + (this.playerObj.width/2),
-            y: this.playerObj.y + (this.playerObj.height/2)
-        }
-        for(let i in check_list){
-           if(check_list[i].intersects(p1,p2))
-            {
-            return false;
-            }
-        }
-        DrawLine(p1.x,p1.y,p2.x,p2.y);
-        return true;
-    }
     angle(){
         //return Math.acos((this.x-this.playerObj.x)/this.distance(this.playerObj));
         let sign = Math.sign((Math.asin((this.y-this.playerObj.y)/this.distance(this.playerObj))));
