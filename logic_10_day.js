@@ -5,8 +5,6 @@ canvas.width = 820;
 canvas.height = 640;
 
 const score= 0 ;
-const highScore= 0;
-const lives= 3;
 
 function Rand(from, to){
 
@@ -89,41 +87,9 @@ const ghostSpriteData1 ={
     height:standartSize-2,
 
 }
-const palletSpriteData ={
-    src:"Assets/pallet.png",
-    spriteX:9,
-    spriteY:11,
-    sprite_width:21,
-    sprite_height:22,
-    width:standartSize/2-2,
-    height:standartSize/2-2,
 
-}
-
-const superPalletSpriteData ={
-    src:"Assets/superPallet.png",
-    spriteX:0,
-    spriteY:0,
-    sprite_width:64,
-    sprite_height:64,
-    width:standartSize-2,
-    height:standartSize-2,
-
-}
-var allObjects = [];
-var allGhosts = [];
-var allPallets = [] ;
-var wall_list = [];
-function ResetGame(){
-    allObjects = [];
-    allGhosts = [];
-    allPallets = [];
-    wall_list= [] ;
-    PlayerObject.instance = null;
-    ParseLevel();
-}
-
-
+const allObjects = [];
+const allGhosts = [];
 
 function ParseLevel(){
     let logicalMap = [];
@@ -278,8 +244,7 @@ function ParseLevel(){
                     allObjects.push(new PlayerObject(j*standartSize+1,i*standartSize+1,playerSpriteData,2));
                     break;
                 case "p":
-                    let po= new PalletObject(j*standartSize+1+(standartSize/4),i*standartSize+1+(standartSize/4),palletSpriteData);
-                    allObjects.push(po);
+                    //add pallet object
                     break;
                 case "sp":
                     //add super pallet object
@@ -312,8 +277,13 @@ function ParseLevel(){
     }
 }
 
-
-
+function ResetGame(){
+    allObjects = [];
+    allGhosts = [];
+    score =0;
+    ParseLevel();
+}
+const wall_list = [];
 
 class GameObject{
     constructor(x,y,width,height,solid = false){
@@ -683,36 +653,7 @@ class PlayerObject extends MovableObject{
         else if(this.direction == dir.left){
             this.moveWithCollision(-this.speed,0,wall_list);
         }
-
-        this.eatPallet();
         
-    }
-    eatPallet(){
-        let eat= []
-        //console.log(allPallets);
-        for(let i in allPallets)
-        {
-            if(this.checkCollision(allPallets[i]) && !allPallets[i].eaten )
-            {
-                eat.push(allPallets[i].id);
-                allPallets[i].eaten=true;
-            }
-        }
-        for(let i in eat)
-        {
-            
-            allPallets.splice(allPallets.findIndex(x=> x.id == eat[i]),1);
-            allObjects.splice(allObjects.findIndex(x=> x.id == eat[i]),1);
-
-            
-            //let ind =allObjects.pop(pallet.ind)
-            
-        }
-        /*for(let i in listEaten)
-        {
-            let pallet =allPallets.pop(i);
-            allObjects.pop(allObjects.indexOf(pallet));
-        }*/
     }
 }
 
@@ -884,40 +825,17 @@ class PalletObject extends GameObject
     constructor(x,y,image_data)
     {
         super(x,y,image_data.width,image_data.height,false);
-        this.id = allPallets.length;
-        //console.log(this.ind);
-        allPallets.push(this);
-        this.image_data =image_data;
-        this.image = new Image();
-        this.image.src = this.image_data.src;
-        this.eaten =false;
 
     }
-    renderSprite(x,y){
-        ctx.drawImage(this.image,
-            this.image_data.spriteX,
-            this.image_data.spriteY,
-            this.image_data.sprite_width,
-            this.image_data.sprite_height,
-            x,
-            y,
-            this.image_data.width,
-            this.image_data.height,
-        );  
-    }
-    render()//renders sprite at current location
-    {
-        this.renderSprite(this.x,this.y);
-    }
+
 }
-class SuperPallet extends PalletObject
+class SuperPallet extends GameObject
 {
     constructor(x,y,image_data)
     {
-        super(x,y,image_data);
+        super(x,y,image_data.width,image_data.height,false);
 
     }
-
 }
 
 
@@ -926,7 +844,6 @@ class SuperPallet extends PalletObject
 ParseLevel();
 
 function update(){
-    //ResetGame();
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for(let i = 0; i <allObjects.length ; i ++){
         allObjects[i].showCollider();
@@ -936,15 +853,10 @@ function update(){
     {
         allGhosts[i].exec();
     }
-
-
     for(let i in wall_list)
     {
         wall_list[i].render();
-    }
-    for(let i in allPallets){
-        allPallets[i].render();
-    }
+        }
     //console.log(player2.checkCollision(player));
     requestAnimationFrame(update);
 }
