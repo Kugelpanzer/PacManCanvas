@@ -4,7 +4,6 @@ const ctx = canvas.getContext('2d');
 canvas.width = 520;
 canvas.height = 520;
 
-
 const dir = {
     idle:-1,
     up:0,
@@ -352,6 +351,8 @@ const player =new PlayerObject(281,230,playerSpriteData,3);
 
 const testObject =new WallObject(200,50,80,80,true);
 const testObject2 =new WallObject(200,213,80,80,true);
+
+console.log(level.layout);
 function update(){
     //console.log("update");
     ctx.clearRect(0,0,canvas.width,canvas.height);

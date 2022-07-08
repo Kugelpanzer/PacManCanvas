@@ -1,8 +1,8 @@
 const canvas = document.getElementById("main-canvas");
 const ctx = canvas.getContext('2d');
 
-canvas.width = 520;
-canvas.height = 520;
+canvas.width = 820;
+canvas.height = 640;
 
 function Rand(from, to){
 
@@ -24,6 +24,33 @@ function LineIntersect (p1, p2, p3, p4) {
     return (CCW(p1, p3, p4) != CCW(p2, p3, p4)) && (CCW(p1, p2, p3) != CCW(p1, p2, p4));
 }
 
+
+
+const level ={
+    layout:[
+        ["w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w"],
+        ["w","sp","p","p","p","p","p","p","p","w","p","p","p","p","p","p","p","p","sp","w"],
+        ["w","p","w","w","w","w","w","w","p","w","p","w","w","w","w","w","w","w","p","w"],
+        ["w","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","w"],
+        ["w","p","w","p","w","w","w","w","p","w","w","w","w","p","w","w","w","w","p","w"],
+        ["w","p","w","p","w","e","e","w","p","w","e","e","w","p","w","g","e","w","p","w"],
+        ["w","p","w","p","w","w","w","w","p","w","w","w","w","p","e","gs","e","w","p","w"],
+        ["w","p","w","p","p","p","p","w","p","w","e","e","w","p","w","gh","e","w","p","w"],
+        ["w","sp","w","p","p","p","p","w","p","w","w","w","w","p","w","w","w","w","sp","w"],
+        ["w","p","p","p","p","p","p","p","p","p","pc","p","p","p","p","p","p","p","p","w"],
+        ["w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w"]
+    ],
+    info:"w->wall , p->pallet, sp->supper_pallet, e->empty, g->ghost, gs->ghost spot, pc->pacman"
+}
+
+const standartSize = 40;
+
+
+const ghostType ={ 
+    rand:0,
+    spot:1,
+    chase:2
+}
 const dir = {
     idle:-1,
     up:0,
@@ -44,8 +71,8 @@ const playerSpriteData = {
     spriteY:35,
     sprite_width:300,
     sprite_height:300,
-    width:80,
-    height:80,
+    width:standartSize-2,
+    height:standartSize-2,
 
 }
 const ghostSpriteData1 ={
@@ -54,11 +81,199 @@ const ghostSpriteData1 ={
     spriteY:20,
     sprite_width:110,
     sprite_height:110,
-    width:80,
-    height:80,
+    width:standartSize-2,
+    height:standartSize-2,
 
 }
 
+const allObjects = [];
+const allGhosts = [];
+
+function ParseLevel(){
+    let logicalMap = [];
+    let wallList = []; // contains data which will be used to create walls
+    let currWallData = null ;
+    let crossList = [ ]; // 
+
+    for(let i=0 ;i<level.layout.length;i++)
+    {
+        let ll = []
+        logicalMap.push(ll);
+        currWallData = null ;
+        for(let j=0;j<level.layout[i].length;j++)
+            switch(level.layout[i][j])
+            {
+                case "w":
+                    ll.push(1);
+                    if(currWallData != null)
+                    {
+                        currWallData.len ++ ;
+                    }
+                    else
+                    {
+                        currWallData ={x:j*standartSize,y:i*standartSize,len:1}
+                        wallList.push(currWallData);
+                    }
+                break;
+                default:
+                    ll.push(0);
+                    currWallData = null;
+                break;
+
+            }
+    }
+    function checkCross (x,y){
+        let c= 0;
+        let dirList =[];
+        if(logicalMap[y][x+1]==0) {c++; dirList.push(dir.right);}
+        if(logicalMap[y][x-1]==0) {c++; dirList.push(dir.left);}
+        if(logicalMap[y+1][x]==0) {c++; dirList.push(dir.down);}
+        if(logicalMap[y-1][x]==0) {c++; dirList.push(dir.up);}
+
+        if(c==0) return null;
+        else if(c == 2)
+        { 
+            if(logicalMap[y][x+1]==0 && logicalMap[y][x-1]==0) return null;
+            if(logicalMap[y+1][x]==0 && logicalMap[y-1][x]==0) return null;
+            return {cross: new CrossroadObject(x*standartSize+1,y*standartSize+1,standartSize,standartSize), dir:dirList,x:x,y:y};
+        }
+        else
+        {
+            return {cross: new CrossroadObject(x*standartSize+1,y*standartSize+1,standartSize,standartSize), dir:dirList,x:x,y:y};
+        }
+    }
+
+    let crossMap =[];
+    for( let i =0 ; i<logicalMap.length; i++){
+        crossMap.push([]);
+    for(let j = 0; j<logicalMap[i].length;j++){
+        crossMap[i].push(null)
+    }
+}
+
+    for( let i =0 ; i<logicalMap.length; i++)
+        for(let j = 0; j<logicalMap[i].length;j++)
+        {
+            if(logicalMap[i][j]== 0)
+            {
+                crossMap[i][j]=checkCross(j,i);
+                if (crossMap[i][j]!= null)
+                    {
+                        allObjects.push(crossMap[i][j].cross);
+                        crossList.push(crossMap[i][j]);
+                    }
+            }
+        }
+    
+    function crossAdj(crossData)
+    {
+        let cl =[];
+        if(crossData.dir.includes(dir.up))
+        {
+            for(let i = crossData.y-1 ; i>0;i--)
+            {
+                if(logicalMap[i][crossData.x] ==1) break;
+                if(crossMap[i][crossData.x]!=null){
+                    cl.push({cross:crossMap[i][crossData.x].cross,dir:dir.up});
+                    break;  
+                }
+            }
+        }
+        if(crossData.dir.includes(dir.left))
+        {
+            for(let i = crossData.x-1 ; i>0;i--)
+            {
+                if(logicalMap[crossData.y][i] ==1) break;
+                if(crossMap[crossData.y][i]!=null){
+                    cl.push({cross:crossMap[crossData.y][i].cross,dir:dir.left});
+                    break;
+                }
+            }
+        }
+        if(crossData.dir.includes(dir.right))
+        {
+            for(let i = crossData.x+1 ; i<crossMap[0].length;i++)
+            {
+                if(logicalMap[crossData.y][i] ==1) break;
+                if(crossMap[crossData.y][i]!=null){
+                    cl.push({cross:crossMap[crossData.y][i].cross,dir:dir.right} );
+                    break;
+                }
+            }
+        }
+        if(crossData.dir.includes(dir.down))
+        {
+            for(let i = crossData.y+1 ; i<crossMap.length;i++)
+            {
+                if(logicalMap[i][crossData.x] ==1) break;
+                if(crossMap[i][crossData.x]!=null){
+                    cl.push({cross:crossMap[i][crossData.x].cross,dir:dir.down});
+                    break;
+                }
+            }
+        }
+        return cl;
+    }
+    for(let i in crossList)
+    {
+       let ca= crossAdj( crossList[i]);
+
+       crossList[i].cross.dirList = crossList[i].dir;
+       for(let j in ca)
+       {
+        
+           crossList[i].cross.crossDir[ca[j].cross]=ca[j].dir;
+            crossList[i].cross.crossList.push(ca[j].cross);            
+       }
+
+    }
+    for(let i in wallList)
+    {
+        allObjects.push(new WallObject(wallList[i].x,wallList[i].y,wallList[i].len*standartSize,standartSize));
+    }
+    for(let i=0 ;i<level.layout.length;i++)
+    {
+        for(let j=0;j<level.layout[i].length;j++)
+        {
+            let c = level.layout[i][j];
+            switch(c)
+            {
+                case "pc":
+                    allObjects.push(new PlayerObject(j*standartSize+1,i*standartSize+1,playerSpriteData,2));
+                    break;
+                case "p":
+                    //add pallet object
+                    break;
+                case "sp":
+                    //add super pallet object
+                    break;
+                case "g":
+                    let g = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData1,2,0);
+                    allObjects.push(g)
+                    allGhosts.push(g);
+                    break;
+                case "gs":
+                    let gs = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData1,2,1);
+                    allObjects.push(gs)
+                    allGhosts.push(gs);
+                    break;
+                case "gh":
+                    let gh = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData1,2,2);
+                    allObjects.push(gh)
+                    allGhosts.push(gh);
+                    break;
+
+                
+
+            }
+        }
+    }
+}
+
+function ResetGame(){
+    allObjects = [];
+    allGhosts = [];
+}
 const wall_list = [];
 
 class GameObject{
@@ -171,9 +386,9 @@ class WallObject extends GameObject{
 }
 class CrossroadObject extends GameObject
 {
-    constructor(x,y,dirList,width,height,solid=false){
+    constructor(x,y,width,height,solid=false){
         super(x,y,width,height,solid)
-        this.dirList = dirList;
+        this.dirList = [];
         this.crossList =  [];
         this.crossDist = {};
         this.currDist= null;
@@ -195,7 +410,7 @@ class CrossroadObject extends GameObject
         ctx.strokeStyle = "black"; 
     }
 
-    #calcCrossToCrossDis() // calculates every neighbouring crossroad distance
+    calcCrossToCrossDis() // calculates every neighbouring crossroad distance
     {
         for(let i in this.crossList)
         {
@@ -203,7 +418,10 @@ class CrossroadObject extends GameObject
         }
         
     }
-
+    reset()
+    {
+        this.currDist = null ;
+    }
     checkDist(dist)
     {
         if(this.currDist == null || this.currDist > dist){
@@ -426,13 +644,49 @@ class PlayerObject extends MovableObject{
 
 
 class GhostBase extends MovableObject{
-    constructor(x,y,image_data,speed=1,solid= false){
+    constructor(x,y,image_data,speed=1,ghostType = ghostType.rand,solid= false){
         super(x,y,image_data,speed,solid);
         this.crossList = [];
         this.availableDirections =[];
         this.type = type.ghost;
         this.direction = dir.idle;
         this.playerObj= PlayerObject.instance;
+        this.ghostType = ghostType;
+        this.flee = false;
+        this.startX = x;
+        this.startY = y;
+    }
+
+    exec()
+    {
+        switch(this.ghostType)
+        {
+            case ghostType.rand:
+                if(!this.flee)
+                    this.randMove();
+                else
+                    this.fleeMove();
+                break;
+            case ghostType.chase:
+                if(!this.flee)
+                    this.chaseMove();
+                else
+                    this.fleeMove();
+                break;
+            case ghostType.spot:
+                if(!this.flee)
+                    this.spotMove();
+                else
+                    this.fleeMove();
+                break;
+            default:
+                if(!this.flee)
+                    this.randMove();
+                else
+                    this.fleeMove();
+                break;
+
+        }
     }
     moveDirection(){
         if(this.direction==dir.idle){
@@ -477,6 +731,34 @@ class GhostBase extends MovableObject{
         }
     }
 
+
+
+    angle(){
+        //return Math.acos((this.x-this.playerObj.x)/this.distance(this.playerObj));
+        let sign = Math.sign((Math.asin((this.y-this.playerObj.y)/this.distance(this.playerObj))));
+        //console.log(sign);
+        return sign*(Math.acos((this.playerObj.x-this.x)/this.distance(this.playerObj)))*(180/Math.PI);
+    }
+
+    getWantedDir(){
+
+        let a= this.angle() ;
+        if(a>-45 && a<=45){
+            this.wantedDirection = dir.right;
+        }
+        else if(a>45 && a<=135){
+            this.wantedDirection=dir.up;
+        }
+        else if (a>-135 && a <=-45){
+            this.wantedDirection = dir.down;
+        }else if ( (a>135 && a<=180) ||(a<-135 && a >=-180)){
+            this.wantedDirection = dir.left ;
+        }
+        else{ 
+            this.wantedDirection = dir.idle;
+        }
+    }
+
     randMove() // moves random regardless of pacman 
     {
         if(this.direction == dir.idle){
@@ -515,73 +797,30 @@ class GhostBase extends MovableObject{
 
     }
 
-    angle(){
-        //return Math.acos((this.x-this.playerObj.x)/this.distance(this.playerObj));
-        let sign = Math.sign((Math.asin((this.y-this.playerObj.y)/this.distance(this.playerObj))));
-        //console.log(sign);
-        return sign*(Math.acos((this.playerObj.x-this.x)/this.distance(this.playerObj)))*(180/Math.PI);
-    }
+    fleeMove()
+    {
 
-    getWantedDir(){
-
-        let a= this.angle() ;
-        if(a>-45 && a<=45){
-            this.wantedDirection = dir.right;
-        }
-        else if(a>45 && a<=135){
-            this.wantedDirection=dir.up;
-        }
-        else if (a>-135 && a <=-45){
-            this.wantedDirection = dir.down;
-        }else if ( (a>135 && a<=180) ||(a<-135 && a >=-180)){
-            this.wantedDirection = dir.left ;
-        }
-        else{ 
-            this.wantedDirection = dir.idle;
-        }
     }
 
 }
 
 
 
-const player =new PlayerObject(281,230,playerSpriteData,3);
 
-const testObject =new WallObject(200,50,80,80,true);
-const testObject2 =new WallObject(200,213,80,80,true);
 
-const ghost1 = new GhostBase(20,100,ghostSpriteData1,5);
-ghost1.availableDirections = [dir.up,dir.down];
-const cross1 = new CrossroadObject(20,20,[dir.down,dir.right],80,80);
-const cross2 = new CrossroadObject(20,300,[dir.up,dir.right],80,80);
-const cross3 = new CrossroadObject(380,300,[dir.up,dir.left],80,80);
-const cross4 = new CrossroadObject(380,20,[dir.down,dir.left],80,80);
-cross1.crossList=[cross2,cross4];
-cross2.crossList=[cross1,cross3];
-cross3.crossList= [cross2,cross4];
-cross4.crossList = [cross1,cross3]
-ghost1.crossList =[cross1,cross2];
+
+ParseLevel();
+
 function update(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    ghost1.spotMove();
-    //ghost1.render();
-    ghost1.showCollider();
-    //ghost1.checkLine(wall_list);
-    //console.log(ghost1.distance(ghost1.playerObj));
-    ghost1.getWantedDir();
-   // console.log(ghost1.wantedDirection);
-    //console.log("update");
-
-    player.executePlayerMovement();
-    player.showCollider();
-    //player.futureMove.showCollider();
-    testObject.showCollider();
-    testObject2.showCollider();
-    cross1.showCollider();
-    cross2.showCollider() ;
-    cross3.showCollider();
-    cross4.showCollider();
-
+    for(let i = 0; i <allObjects.length ; i ++){
+        allObjects[i].showCollider();
+    }
+    PlayerObject.instance.executePlayerMovement();
+    /*for(let i in allGhosts)
+    {
+        allGhosts[i].exec();
+    }*/
     //console.log(player2.checkCollision(player));
     requestAnimationFrame(update);
 }
