@@ -1,13 +1,16 @@
 const canvas = document.getElementById("main-canvas");
 const ctx = canvas.getContext('2d');
 
-canvas.width = 820;
-canvas.height = 640;
+canvas.width = 800;
+canvas.height = 480;
 
 var score= 0 ;
 var highScore= 0;
 var lives= 3;
 var currFearTimer = 0;
+var pause;
+var pause_time = null ;
+var ghostEaten=0;
 
 const palletPoint = 10;
 const superPalletPoint =50;
@@ -43,9 +46,9 @@ const level ={
         ["w","p","w","w","w","w","w","w","p","w","p","w","w","w","w","w","w","w","p","w"],
         ["w","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","w"],
         ["w","p","w","p","w","w","w","w","p","w","w","w","w","p","w","w","w","w","p","w"],
-        ["w","p","w","p","w","e","e","w","p","w","e","e","w","p","w","e","w","w","p","w"],
-        ["w","p","w","p","w","w","w","w","p","w","w","w","w","p","e","gh","w","w","p","w"],
-        ["w","p","w","p","p","p","p","w","p","w","e","e","w","p","w","e","w","w","p","w"],
+        ["w","p","w","p","w","e","e","w","p","w","e","e","w","p","w","gh","w","w","p","w"],
+        ["w","p","w","p","w","w","w","w","p","w","w","w","w","p","e","g","w","w","p","w"],
+        ["w","p","w","p","p","p","p","w","p","w","e","e","w","p","w","gs","w","w","p","w"],
         ["w","sp","w","p","p","p","p","w","p","w","w","w","w","p","w","w","w","w","sp","w"],
         ["w","p","p","p","p","p","p","p","p","p","pc","p","p","p","p","p","p","p","p","w"],
         ["w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w"]
@@ -81,14 +84,34 @@ const playerSpriteData = {
     spriteY:35,
     sprite_width:300,
     sprite_height:300,
-    width:standartSize-2,
-    height:standartSize-2,
+    width:standartSize-4,
+    height:standartSize-4,
 
 }
 const ghostSpriteData1 ={
     src:"Assets/ghost.png",
     spriteX:240,
     spriteY:20,
+    sprite_width:110,
+    sprite_height:110,
+    width:standartSize-2,
+    height:standartSize-2,
+
+}
+const ghostSpriteData2 ={
+    src:"Assets/ghost.png",
+    spriteX:360,
+    spriteY:240,
+    sprite_width:110,
+    sprite_height:110,
+    width:standartSize-2,
+    height:standartSize-2,
+
+}
+const ghostSpriteData3 ={
+    src:"Assets/ghost.png",
+    spriteX:400,
+    spriteY:120,
     sprite_width:110,
     sprite_height:110,
     width:standartSize-2,
@@ -108,8 +131,8 @@ const palletSpriteData ={
 
 const superPalletSpriteData ={
     src:"Assets/superPallet.png",
-    spriteX:0,
-    spriteY:0,
+    spriteX:-15,
+    spriteY:-15,
     sprite_width:64,
     sprite_height:64,
     width:standartSize-2,
@@ -312,22 +335,22 @@ function ParseLevel(){
                     allObjects.push(new PlayerObject(j*standartSize+1,i*standartSize+1,playerSpriteData,2));
                     break;
                 case "p":
-                    let po= new PalletObject(j*standartSize+1+(standartSize/4),i*standartSize+1+(standartSize/4),palletSpriteData);
+                    let po= new PalletObject(j*standartSize+5+(standartSize/4),i*standartSize+5+(standartSize/4),palletSpriteData);
                     allObjects.push(po);
                     break;
                 case "sp":
-                    let spo= new SuperPallet(j*standartSize+1,i*standartSize+1,superPalletSpriteData);
+                    let spo= new SuperPallet(j*standartSize,i*standartSize,superPalletSpriteData);
                     allObjects.push(spo);
                     break;
                 case "g":
-                    let g = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData1,2,0);
+                    let g = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData2,2,0);
                     allObjects.push(g)
                     allGhosts.push(g);
                     g.crossList = [crossMap[i][j].cross];
                     g.startCross =crossMap[i][j].cross;
                     break;
                 case "gs":
-                    let gs = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData1,2,1);
+                    let gs = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData3,2,1);
                     allObjects.push(gs)
                     allGhosts.push(gs);
                     gs.crossList = [crossMap[i][j].cross];
@@ -431,7 +454,7 @@ class GameObject{
             return false;
             }
         }
-        DrawLine(p1.x,p1.y,p2.x,p2.y);
+        
         return true;
     }
 }
@@ -521,7 +544,7 @@ class CrossroadObject extends GameObject
             for(let i in this.crossList)
             {
 
-                this.crossList[i].checkDist(dist+this.crossDist[i]);
+                this.crossList[i].checkDist((dist+this.crossDist[i])*1.3);
             }
         }
     }
@@ -537,7 +560,7 @@ class CrossroadObject extends GameObject
             for(let i in this.crossList)
             { 
 
-                this.crossList[i].checkDist(dist+this.crossDist[i]);
+                this.crossList[i].checkDist((dist+this.crossDist[i])*1.3);
             }
         }
 
@@ -717,11 +740,67 @@ class PlayerObject extends MovableObject{
         PlayerObject.initPlayerMovement(this);
         this.type = type.player;
         this.wantedDirection =-1;
-        
+        this.startDir= [];
+        this.startingDirections();
         if(PlayerObject.instance == null)
             PlayerObject.instance=  this;
     }
     static instance= null;
+    startingDirections(){
+        
+        this.futureMove.moveRelative(0,-15)
+        if(!this.futureMove.checkCollisionList(wall_list))
+        {
+            this.startDir.push(dir.up)
+        }
+        this.futureMove.move(this.x,this.y);
+
+        this.futureMove.moveRelative(0,15)
+        if(!this.futureMove.checkCollisionList(wall_list))
+        {
+            this.startDir.push(dir.down)
+        }
+        this.futureMove.move(this.x,this.y);
+        this.futureMove.moveRelative(-15,0)
+        if(!this.futureMove.checkCollisionList(wall_list))
+        {
+            this.startDir.push(dir.left)
+        }
+        this.futureMove.move(this.x,this.y);
+        this.futureMove.moveRelative(15,0)
+        if(!this.futureMove.checkCollisionList(wall_list))
+        {
+            this.startDir.push(dir.right)
+        }
+        this.futureMove.move(this.x,this.y);
+
+    }
+    checkCross()
+    {
+        for(let i in allCross){
+            
+            if(this.distance(allCross[i])<=this.speed+1){
+                return allCross[i];
+            }
+        }
+
+        return null;
+    }
+    setToCross(){
+        let cross = this.checkCross();
+        if(cross != null){
+            let crossData = cross.getCrossData();
+            if(crossData.dirList.includes(this.wantedDirection) && this.wantedDirection!=this.direction)
+            {
+                this.move(cross.x+2,cross.y+2);
+                this.futureMove.move(this.x,this.y);
+                this.direction = this.wantedDirection;
+            }
+            
+            //this.direction = dir.idle;
+            //this.wantedDirection = dir.idle;
+        }
+    }
     static initPlayerMovement(instance){
         window.addEventListener("keydown",function(e){
             if(e.key == "d"){
@@ -737,6 +816,10 @@ class PlayerObject extends MovableObject{
             if(e.key == "a"){
                 instance.wantedDirection = dir.left;
             }
+            if(e.key == "p"){
+                if(pause) {pause = false;pause_time =Date.now();requestAnimationFrame(update);}
+                else pause = true;
+            }
         })
         window.addEventListener("keyup",function(e){
            //instance.direction= dir.idle;
@@ -745,25 +828,40 @@ class PlayerObject extends MovableObject{
 
 
     executePlayerMovement(){
+        
+        this.setToCross();
 
-        this.direction =this.wantedDirection;
+        if(this.direction == dir.idle && this.startDir.includes(this.wantedDirection))
+            this.direction =this.wantedDirection;
         
         if(this.direction==dir.idle){
             this.render();
         }
-        else if(this.direction == dir.up){
+         if(this.direction == dir.up){
+            if(this.wantedDirection == dir.down){
+                this.direction=dir.down;
+            }
             this.moveWithCollision(0,-this.speed,wall_list);
         }
-        else if(this.direction == dir.right){
+         if(this.direction == dir.right){
+            if(this.wantedDirection == dir.left){
+                this.direction= dir.left;
+            }
             this.moveWithCollision(this.speed,0,wall_list);
         }
-        else if(this.direction == dir.down){
+        if(this.direction == dir.down){
+            if(this.wantedDirection == dir.up){
+                this.direction= dir.up;
+            }
             this.moveWithCollision(0,this.speed,wall_list);
         }
-        else if(this.direction == dir.left){
+        if(this.direction == dir.left){
+            if(this.wantedDirection == dir.right){
+                this.direction= dir.right;
+            }
             this.moveWithCollision(-this.speed,0,wall_list);
         }
-
+        this.setToCross();
         this.eatPallet();
         
     }
@@ -876,9 +974,10 @@ class GhostBase extends MovableObject{
         if(this.checkCollision(PlayerObject.instance)){
             if(this.flee)
             {
-                score += ghostPoint;
+                score += (2**(ghostEaten)) *ghostPoint;
                 this.move(this.startX,this.startY);
                 this.crossList = [this.startCross];
+                ghostEaten++;
             }
             else
             {
@@ -1084,19 +1183,12 @@ var deltaTime = 0;
 function update(){
     //ResetGame();
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    for(let i = 0; i <allObjects.length ; i ++){
-        allObjects[i].showCollider();
-    }
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     for(let i in allCross)
     {
-       // allCross[i].reset();
-    }
-        for(let i in allCross)
-    {
         allCross[i].calcCross();
-        if(allCross[i].currDist ==null)
-            allCross[i].color = '#'+(allCross[i].currDist%1000000).toString(16);
-
         
     }
     PlayerObject.instance.executePlayerMovement();
@@ -1110,14 +1202,25 @@ function update(){
     {
         wall_list[i].render();
     }
-    for(let i in allPallets){
+    for(let i in allPallets)
+    {
         allPallets[i].render();
     }
-    document.getElementById("score").innerHTML= "<p>"+ score.toString() +"</p>";
-    document.getElementById("high_score").innerHTML= "<p>"+ highScore.toString() +"</p>";
-    document.getElementById("lives").innerHTML= "<p>"+ lives.toString() +"</p>";
+    document.getElementById("score").innerHTML= "<p>Score: "+ score.toString() +"</p>";
+    document.getElementById("high_score").innerHTML= "<p>Highest score: "+ highScore.toString() +"</p>";
+    let _str = "<p>Lives: " ;
+    for(let i=0;i<lives;i++)
+        _str+=`<img src ="Assets/pacman_life.png" class ="life_img">`
+    
+    _str+="</p>";
+    document.getElementById("lives").innerHTML= _str;
 
-    deltaTime = Date.now()-lastFrame;
+    if(pause_time!=null){
+        deltaTime = pause_time-lastFrame;
+        pause_time=null
+    }else{
+        deltaTime = Date.now()-lastFrame;
+    }
     lastFrame= Date.now();
 
     if(currFearTimer>0){
@@ -1129,11 +1232,14 @@ function update(){
         {
             allGhosts[i].flee = false;
         }
+        ghostEaten= 0;
     }
 
     //console.log(deltaTime);
-    requestAnimationFrame(update);
+    if(!pause)
+        requestAnimationFrame(update);
 }
 
 
-update();
+ update();
+ 
