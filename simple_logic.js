@@ -4,9 +4,13 @@ const ctx = canvas.getContext('2d');
 canvas.width = 820;
 canvas.height = 640;
 
-const score= 0 ;
-const highScore= 0;
-const lives= 3;
+var score= 0 ;
+var highScore= 0;
+var lives= 3;
+
+const palletPoint = 10;
+const superPalletPoint =50;
+const ghostPoint = 200;
 
 function Rand(from, to){
 
@@ -37,9 +41,9 @@ const level ={
         ["w","p","w","w","w","w","w","w","p","w","p","w","w","w","w","w","w","w","p","w"],
         ["w","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","p","w"],
         ["w","p","w","p","w","w","w","w","p","w","w","w","w","p","w","w","w","w","p","w"],
-        ["w","p","w","p","w","e","e","w","p","w","e","e","w","p","w","g","w","w","p","w"],
-        ["w","p","w","p","w","w","w","w","p","w","w","w","w","p","e","g","w","w","p","w"],
-        ["w","p","w","p","p","p","p","w","p","w","e","e","w","p","w","g","w","w","p","w"],
+        ["w","p","w","p","w","e","e","w","p","w","e","e","w","p","w","e","w","w","p","w"],
+        ["w","p","w","p","w","w","w","w","p","w","w","w","w","p","e","gh","w","w","p","w"],
+        ["w","p","w","p","p","p","p","w","p","w","e","e","w","p","w","e","w","w","p","w"],
         ["w","sp","w","p","p","p","p","w","p","w","w","w","w","p","w","w","w","w","sp","w"],
         ["w","p","p","p","p","p","p","p","p","p","pc","p","p","p","p","p","p","p","p","w"],
         ["w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w","w"]
@@ -113,14 +117,42 @@ const superPalletSpriteData ={
 var allObjects = [];
 var allGhosts = [];
 var allPallets = [] ;
+var allCross = [] ;
 var wall_list = [];
 function ResetGame(){
     allObjects = [];
     allGhosts = [];
     allPallets = [];
+    allCross = [] ;
     wall_list= [] ;
     PlayerObject.instance = null;
     ParseLevel();
+}
+function LoseLife() 
+{
+    lives -- ; 
+    if(lives<0){
+        LoseGame();
+    }
+    else{
+        ResetGame();
+    }
+
+}
+function LoseGame()
+{ 
+    if(score>highScore){
+        highScore = score;
+    }
+    lives = 3;
+    score= 0;
+    ResetGame();
+}
+function CheckVictory(){
+    if(allPallets.length == 0)
+    {
+        ResetGame();
+    }
 }
 
 
@@ -258,7 +290,7 @@ function ParseLevel(){
        for(let j in ca)
        {
         
-           crossList[i].cross.crossDir[ca[j].cross]=ca[j].dir;
+           crossList[i].cross.crossDir[j]=ca[j].dir;
             crossList[i].cross.crossList.push(ca[j].cross);            
        }
 
@@ -294,11 +326,13 @@ function ParseLevel(){
                     let gs = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData1,2,1);
                     allObjects.push(gs)
                     allGhosts.push(gs);
+                    gs.crossList = [crossMap[i][j].cross];
                     break;
                 case "gh":
                     let gh = new GhostBase(j*standartSize+1,i*standartSize+1,ghostSpriteData1,2,2);
                     allObjects.push(gh)
                     allGhosts.push(gh);
+                    gh.crossList = [crossMap[i][j].cross];
                     break;
 
                 
@@ -310,6 +344,7 @@ function ParseLevel(){
     {
         crossList[i].cross.calcCrossToCrossDis(); 
     }
+
 }
 
 
@@ -433,10 +468,12 @@ class CrossroadObject extends GameObject
 {
     constructor(x,y,width,height,solid=false){
         super(x,y,width,height,solid)
+        allCross.push(this);
         this.dirList = [];
         this.crossList =  [];
-        this.crossDist = {};
+        this.crossDist = {};//calculated at beggining
         this.currDist= null;
+        this.color = 'green';
         this.crossDir = {}; // contains pointers to cross adjecent cross objects, and directions how to go to them
     }
     getCrossData()//gest list of next crossroads, and available directions
@@ -449,7 +486,7 @@ class CrossroadObject extends GameObject
 
     showCollider(){
         ctx.beginPath();
-        ctx.strokeStyle = "green";  
+        ctx.strokeStyle = this.color;  
         ctx.rect(this.x,this.y,this.width,this.height);
         ctx.stroke();
         ctx.strokeStyle = "black"; 
@@ -459,7 +496,7 @@ class CrossroadObject extends GameObject
     {
         for(let i in this.crossList)
         {
-            this.crossDist[this.crossList[i]] = this.distance(this.crossList[i]);
+            this.crossDist[i]= this.distance(this.crossList[i]);
         }
         
     }
@@ -469,12 +506,16 @@ class CrossroadObject extends GameObject
     }
     checkDist(dist)
     {
-        if(this.currDist == null || this.currDist > dist){
+        
+        if(this.currDist == null || this.currDist > dist)
+        {
             this.currDist = dist
-
+            if(this.currDist ==null)
+                this.color = 'red';
             for(let i in this.crossList)
             {
-                this.crossList[i].checkDist(dist+this.crossList[i].crossDist[this]);
+
+                this.crossList[i].checkDist(dist+this.crossDist[i]);
             }
         }
     }
@@ -485,12 +526,30 @@ class CrossroadObject extends GameObject
         {
             let dist = this.distance(PlayerObject.instance);
             this.currDist = dist;
+            if(this.currDist ==null)
+                this.color = 'red';
             for(let i in this.crossList)
             { 
-                this.crossList[i].checkDist(dist+this.crossList[i].crossDist[this]);
+
+                this.crossList[i].checkDist(dist+this.crossDist[i]);
             }
         }
 
+    }
+    getClosestCrossDir()
+    {
+        let dist = null;
+        let dir = null;
+        for(let i in this.crossList)
+        {
+            if(dist == null || (this.crossList[i].currDist!=null && dist>this.crossList[i].currDist))
+            {
+                dist = this.crossList[i].currDist;
+                dir = this.crossDir[i];
+            }
+        }
+
+        return dir;
     }
 }
 
@@ -689,7 +748,7 @@ class PlayerObject extends MovableObject{
     }
     eatPallet(){
         let eat= []
-        //console.log(allPallets);
+
         for(let i in allPallets)
         {
             if(this.checkCollision(allPallets[i]) && !allPallets[i].eaten )
@@ -703,11 +762,12 @@ class PlayerObject extends MovableObject{
             
             allPallets.splice(allPallets.findIndex(x=> x.id == eat[i]),1);
             allObjects.splice(allObjects.findIndex(x=> x.id == eat[i]),1);
-
+            score += palletPoint;
             
             //let ind =allObjects.pop(pallet.ind)
             
         }
+        CheckVictory();
         /*for(let i in listEaten)
         {
             let pallet =allPallets.pop(i);
@@ -779,6 +839,10 @@ class GhostBase extends MovableObject{
         else if(this.direction == dir.left){
             this.moveRelative(-this.speed,0);
         }
+
+        if(this.checkCollision(PlayerObject.instance)){
+            LoseLife();
+        }
     }
     checkCross()
     {
@@ -794,9 +858,7 @@ class GhostBase extends MovableObject{
     setToCross(){
         let cross = this.checkCross();
         this.pastCross = cross ;
-        //console.log(this.crossList);
         if(cross != null){
-           
             this.move(cross.x,cross.y);
             let crossData = cross.getCrossData();
             this.availableDirections = crossData.dirList;
@@ -811,7 +873,6 @@ class GhostBase extends MovableObject{
     angle(){
         //return Math.acos((this.x-this.playerObj.x)/this.distance(this.playerObj));
         let sign = Math.sign((Math.asin((this.y-PlayerObject.instance.y)/this.distance(PlayerObject.instance))));
-        //console.log(sign);
         return sign*(Math.acos((PlayerObject.instance.x-this.x)/this.distance(PlayerObject.instance)))*(180/Math.PI);
     }
 
@@ -838,6 +899,7 @@ class GhostBase extends MovableObject{
     {
         if(this.direction == dir.idle){
             this.render();
+            
             this.direction = this.availableDirections[Rand(0,this.availableDirections.length)];
         }
         this.setToCross();
@@ -870,6 +932,28 @@ class GhostBase extends MovableObject{
     chaseMove()//always moves closer to pacman
     {
 
+        
+        if(this.direction == dir.idle){
+            this.render();
+            let dir=null;
+            if(this.pastCross!=null)
+            {
+
+                dir =this.pastCross.getClosestCrossDir();
+            }
+            if(dir!= null)
+            {
+                this.direction = dir;
+            }
+            else
+            {
+            this.direction = this.availableDirections[Rand(0,this.availableDirections.length)];
+            }
+
+        }
+        this.setToCross();
+        this.moveDirection();
+
     }
 
     fleeMove()
@@ -885,7 +969,6 @@ class PalletObject extends GameObject
     {
         super(x,y,image_data.width,image_data.height,false);
         this.id = allPallets.length;
-        //console.log(this.ind);
         allPallets.push(this);
         this.image_data =image_data;
         this.image = new Image();
@@ -925,11 +1008,28 @@ class SuperPallet extends PalletObject
 
 ParseLevel();
 
+for(let i in allCross)
+{
+ allCross[i].calcCross();
+
+}
 function update(){
     //ResetGame();
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for(let i = 0; i <allObjects.length ; i ++){
         allObjects[i].showCollider();
+    }
+    for(let i in allCross)
+    {
+       // allCross[i].reset();
+    }
+        for(let i in allCross)
+    {
+        allCross[i].calcCross();
+        if(allCross[i].currDist ==null)
+            allCross[i].color = '#'+(allCross[i].currDist%1000000).toString(16);
+
+        
     }
     PlayerObject.instance.executePlayerMovement();
     for(let i in allGhosts)
@@ -945,7 +1045,8 @@ function update(){
     for(let i in allPallets){
         allPallets[i].render();
     }
-    //console.log(player2.checkCollision(player));
+    document.getElementById("score").innerHTML= "<p>"+ score.toString() +"</p>";
+    document.getElementById("lives").innerHTML= "<p>"+ lives.toString() +"</p>";
     requestAnimationFrame(update);
 }
 
