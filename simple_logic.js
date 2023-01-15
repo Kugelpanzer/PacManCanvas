@@ -1191,7 +1191,12 @@ function update(){
         allCross[i].calcCross();
         
     }
+    for(let i in allPallets)
+    {
+        allPallets[i].render();
+    }
     PlayerObject.instance.executePlayerMovement();
+
     for(let i in allGhosts)
     {
         allGhosts[i].exec();
@@ -1202,10 +1207,7 @@ function update(){
     {
         wall_list[i].render();
     }
-    for(let i in allPallets)
-    {
-        allPallets[i].render();
-    }
+
     document.getElementById("score").innerHTML= "<p>Score: "+ score.toString() +"</p>";
     document.getElementById("high_score").innerHTML= "<p>Highest score: "+ highScore.toString() +"</p>";
     let _str = "<p>Lives: " ;
@@ -1238,6 +1240,11 @@ function update(){
     //console.log(deltaTime);
     if(!pause)
         requestAnimationFrame(update);
+    for(let i in allCross)
+    {
+        allCross[i].currDist=null;
+        
+    }
 }
 
 
